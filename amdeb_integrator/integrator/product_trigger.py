@@ -11,7 +11,7 @@ from openerp import api, SUPERUSER_ID
 from openerp.addons.product.product import product_template, product_product
 
 from ..shared import utility
-from ..shared.model_names import PRODUCT_PRODUCT
+from ..shared.model_names import PRODUCT_PRODUCT, PRODUCT_TEMPLATE
 from .log_product_operation import (
     log_create_operation,
     log_write_operation,
@@ -19,11 +19,15 @@ from .log_product_operation import (
 )
 
 # first save interested original methods
-original_create = product_product.create
-original_write = product_product.write
-original_template_write = product_template.write
-original_unlink = product_product.unlink
-original_template_unlink = product_template.unlink
+original_create = {PRODUCT_PRODUCT: product_product.create,}
+original_write = {
+    PRODUCT_PRODUCT: product_product.write,
+    PRODUCT_TEMPLATE: product_template.write,
+    }
+original_unlink = {
+    PRODUCT_PRODUCT: product_product.unlink,
+    PRODUCT_TEMPLATE: product_template.unlink,
+    }
 
 
 # To make this also work correctly for traditional-style call,
@@ -33,7 +37,8 @@ original_template_unlink = product_template.unlink
 @api.model
 @api.returns('self', lambda value: value.id)
 def create(self, values):
-    record = original_create(self, values)
+    original_method = original_create[self._name]
+    record = original_method(self, values)
     env = self.env(user=SUPERUSER_ID)
     log_create_operation(self._name, env, record.id)
 
@@ -42,10 +47,8 @@ def create(self, values):
 
 @api.multi
 def write(self, values):
-    if self._name == PRODUCT_PRODUCT:
-        original_write(self, values)
-    else:
-        original_template_write(self, values)
+    original_method = original_write[self._name]
+    original_method(self, values)
 
     #sometimes value is empty, don't log it
     if values:
@@ -60,10 +63,8 @@ def write(self, values):
 # we need to apply the decorator here
 @api.cr_uid_ids_context
 def unlink(self, cr, uid, ids, context=None):
-    if self._name == PRODUCT_PRODUCT:
-        original_unlink(self, cr, uid, ids, context=context)
-    else:
-        original_template_unlink(self, cr, uid, ids, context=context)
+    original_method = original_unlink[self._name]
+    original_method(self, cr, uid, ids, context=context)
 
     if not utility.is_sequence(ids):
         ids = [ids]
