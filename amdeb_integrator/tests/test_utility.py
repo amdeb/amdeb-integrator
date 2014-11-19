@@ -2,18 +2,15 @@
 
 from unittest2 import TestCase
 
-# use absolute import for PyCharm, relative import for Odoo
-if '.' not in __name__:
-    from amdeb_integrator.shared import utility
-else:
-    from ..amdeb_integrator.shared import utility
+# unable to run unittest in an IDE because the module imports other addons
+from openerp.addons.amdeb_integrator.shared import utility
 
 
 # the filename has to be test_XXX to be executed by Odoo testing
 # the class name doesn't have this convention
 class TestUtility(TestCase):
 
-    def test_is_container_with_sequences(self):
+    def test_is_sequence_with_sequences(self):
         """Test is_sequence using some sequences"""
         subject1 = []
         subject2 = [0, ]
@@ -25,7 +22,7 @@ class TestUtility(TestCase):
         self.assertTrue(utility.is_sequence(subject3))
         self.assertTrue(utility.is_sequence(subject4))
 
-    def test_is_container_without_sequence(self):
+    def test_is_sequence_without_sequence(self):
         """Test is_sequence using non-sequence subjects"""
         subject1 = 0
         subject2 = None

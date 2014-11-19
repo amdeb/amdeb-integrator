@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Event subscribers for product-related operations.
-Odoo uses two tables to store product-related data:
-product.template and product.product.
-We need to subscribe both in write operation.
+Create records for product-related operations.
 """
 
 import cPickle
@@ -21,24 +18,23 @@ from ..shared.record_operations import (
 _logger = logging.getLogger(__name__)
 
 
-def create_record(model_name, env, record_id):
+def log_create_operation(model_name, env, record_id):
     record_values = {
         'record_id': record_id,
         'model_name': model_name,
         'record_operation': CREATE_RECORD,
     }
+
     model = env[PRODUCT_OPERATION_TABLE]
     record = model.create(record_values)
+    _logger.debug("{} create record id {}. {} record id {}.".format(
+        model_name, record_id, PRODUCT_OPERATION_TABLE, record.id
+    ))
+
     return record
 
 
-def write_record(model_name, env, record_id, values):
-    """ Write a product write record for the model name """
-
-    # product_template call write() after it creates a new database record
-    # therefore it triggers write event first that should be ignored.
-    # ignore a write operation that doesn't have a create operation
-
+def log_write_operation(model_name, env, record_id, values):
     data = cPickle.dumps(values, cPickle.HIGHEST_PROTOCOL)
     record_values = {
         'record_id': record_id,
@@ -49,10 +45,14 @@ def write_record(model_name, env, record_id, values):
 
     model = env[PRODUCT_OPERATION_TABLE]
     record = model.create(record_values)
+    _logger.debug("Model {} write record id {}. {} record id {}.".format(
+        model_name, record_id, PRODUCT_OPERATION_TABLE, record.id
+    ))
+
     return record.id
 
 
-def unlink_record(model_name, env, record_id):
+def log_unlink_operation(model_name, env, record_id):
     record_values = {
         'record_id': record_id,
         'model_name': model_name,
@@ -61,4 +61,8 @@ def unlink_record(model_name, env, record_id):
 
     model = env[PRODUCT_OPERATION_TABLE]
     record = model.create(record_values)
+    _logger.debug("Model {} unlink record id {}. {} record id {}.".format(
+        model_name, record_id, PRODUCT_OPERATION_TABLE, record.id
+    ))
+
     return record.id

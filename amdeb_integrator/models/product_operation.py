@@ -2,8 +2,8 @@
 
 from openerp import models, fields
 
-from ..amdeb_integrator.shared.model_names import PRODUCT_OPERATION_TABLE
-from ..amdeb_integrator.shared.utility import field_utcnow
+from ..shared.model_names import PRODUCT_OPERATION_TABLE
+from ..shared.utility import field_utcnow
 
 
 class ProductOperation(models.Model):
