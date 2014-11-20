@@ -7,4 +7,3 @@ from . import models
 
 # import trigger and event to intercept record change calls
 from . import integrator
-
