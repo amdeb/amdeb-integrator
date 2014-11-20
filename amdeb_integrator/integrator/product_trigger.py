@@ -19,7 +19,7 @@ from .log_product_operation import (
 )
 
 # first save interested original methods
-original_create = {PRODUCT_PRODUCT: product_product.create,}
+original_create = {PRODUCT_PRODUCT: product_product.create, }
 original_write = {
     PRODUCT_PRODUCT: product_product.write,
     PRODUCT_TEMPLATE: product_template.write,
@@ -50,7 +50,7 @@ def write(self, values):
     original_method = original_write[self._name]
     original_method(self, values)
 
-    #sometimes value is empty, don't log it
+    # sometimes value is empty, don't log it
     if values:
         env = self.env(user=SUPERUSER_ID)
         for record_id in self._ids:
