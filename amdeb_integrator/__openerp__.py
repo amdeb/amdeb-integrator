@@ -17,6 +17,9 @@ and write changes to integration tables.
     'depends': [
         'product',
     ],
+    'data': [
+        'security/ir.model.access.csv',
+    ],
     'installable': True,
     'application': False,
 }
