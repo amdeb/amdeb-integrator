@@ -13,7 +13,6 @@ from ..shared.utility import field_utcnow
 class ProductOperation(models.Model):
     _name = PRODUCT_OPERATION_TABLE
     _description = 'Product Operation'
-    _order = 'operation_timestamp'
     _log_access = False
 
     model_name = fields.Selection(
@@ -67,6 +66,7 @@ class ProductOperation(models.Model):
         string='Operation Timestamp',
         required=True,
         default=field_utcnow,
+        index=True,
         readonly=True,
     )
 
