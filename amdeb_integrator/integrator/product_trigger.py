@@ -120,6 +120,11 @@ def _create_unlink_data(self, cr, uid, ids, context):
     # Therefore we create product_template unlink
     # record when the last product_product is unlinked
 
+    # If there are more than one variants and we unlink
+    # all in a single call, Odoo doesn't unlink product_template.
+    # It only unlink product_template if we only unlink the last
+    # variant in its own unlink call.
+
     unlink_records = []
     for product in self.browse(cr, uid, ids, context=context):
         operation_record = OperationRecord(
