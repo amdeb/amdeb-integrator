@@ -7,27 +7,63 @@
     The new function signatures are copied from openerp/models.py
 """
 
+import cPickle
+import logging
+
 from openerp import api, SUPERUSER_ID
 from openerp.addons.product.product import product_template, product_product
 
 from ..shared import utility
-from ..shared.model_names import PRODUCT_PRODUCT, PRODUCT_TEMPLATE
-from .log_product_operation import (
-    log_create_operation,
-    log_write_operation,
-    log_unlink_operation,
+from ..shared.model_names import (
+    PRODUCT_PRODUCT,
+    PRODUCT_TEMPLATE,
+    PRODUCT_OPERATION_TABLE,
+)
+from ..shared.operations_types import (
+    CREATE_RECORD,
+    WRITE_RECORD,
+    UNLINK_RECORD,
 )
 
+_logger = logging.getLogger(__name__)
+
+
+def log_operation(env, model_name, record_id,
+                  template_id, values, operation_type):
+    """ Log product operations. """
+
+    if values:
+        values = cPickle.dumps(values, cPickle.HIGHEST_PROTOCOL)
+
+    record_values = {
+        'model_name': model_name,
+        'record_id': record_id,
+        'template_id': template_id,
+        'record_operation': operation_type,
+        'operation_data': values,
+    }
+
+    model = env[PRODUCT_OPERATION_TABLE]
+    record = model.create(record_values)
+    _logger.debug("Model: {}, record id: {}, template id: {}. "
+                  "{} operation: {}, record id {}, values: {}.".format(
+        model_name, record_id, template_id,
+        PRODUCT_OPERATION_TABLE, operation_type, record.id, values
+    ))
+
 # first save interested original methods
-original_create = {PRODUCT_PRODUCT: product_product.create, }
+original_create = {
+    PRODUCT_PRODUCT: product_product.create,
+}
+
 original_write = {
     PRODUCT_PRODUCT: product_product.write,
     PRODUCT_TEMPLATE: product_template.write,
-    }
+}
 original_unlink = {
     PRODUCT_PRODUCT: product_product.unlink,
     PRODUCT_TEMPLATE: product_template.unlink,
-    }
+}
 
 
 # To make this also work correctly for traditional-style call,
@@ -39,8 +75,14 @@ original_unlink = {
 def create(self, values):
     original_method = original_create[self._name]
     record = original_method(self, values)
+
+    template_id = record.id
+    if self._name == PRODUCT_PRODUCT:
+        template_id = record.product_tmpl_id.id
+
     env = self.env(user=SUPERUSER_ID)
-    log_create_operation(self._name, env, record.id)
+    log_operation(env, self._name, record.id,
+                  template_id, None, CREATE_RECORD)
 
     return record
 
@@ -52,9 +94,14 @@ def write(self, values):
 
     # sometimes value is empty, don't log it
     if values:
-        env = self.env(user=SUPERUSER_ID)
-        for record_id in self._ids:
-            log_write_operation(self._name, env, record_id, values)
+        for product in self.browse():
+            template_id = product.id
+            if self._name == PRODUCT_PRODUCT:
+                template_id = product.product_tmpl_id.id
+
+            env = self.env(user=SUPERUSER_ID)
+            log_operation(env, self._name, product.id,
+                          template_id, values, WRITE_RECORD)
 
     return True
 
@@ -63,6 +110,26 @@ def write(self, values):
 # we need to apply the decorator here
 @api.cr_uid_ids_context
 def unlink(self, cr, uid, ids, context=None):
+    """ log unlink product's ean13 and default_code """
+    # product_template can be deleted 1) by itself or
+    # 2) by deletion of its last product_product.
+    # In the second case,  product_template unlink
+    # doesn't have ean13 and default_code.
+    # Therefore we need to to remember product_product's
+    # template id to retrieve the ean13 and default_code.
+    product_codes = {}
+    for product in self.browse(cr, uid, ids, context=context):
+        template_id = product.id
+        if self._name == PRODUCT_PRODUCT:
+            template_id = product.product_tmpl_id.id
+
+        # for product_template unlinked by its last product_product,
+        # its ean13 and default_code are False.
+        product_codes[product.id] = (
+            template_id,
+            (product.ean13, product.default_code),
+        )
+
     original_method = original_unlink[self._name]
     original_method(self, cr, uid, ids, context=context)
 
@@ -74,8 +141,13 @@ def unlink(self, cr, uid, ids, context=None):
         context = {}
 
     env = api.Environment(cr, SUPERUSER_ID, context)
-    for record_id in ids:
-        log_unlink_operation(self._name, env, record_id)
+    for record_id in product_codes:
+        log_operation(
+            env, self._name, record_id,
+            product_codes[record_id][0],
+            product_codes[record_id][1],
+            UNLINK_RECORD
+        )
 
     return True
 

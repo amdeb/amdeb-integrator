@@ -2,7 +2,11 @@
 
 from openerp import models, fields
 
-from ..shared.model_names import PRODUCT_OPERATION_TABLE
+from ..shared.model_names import (
+    PRODUCT_OPERATION_TABLE,
+    PRODUCT_PRODUCT,
+    PRODUCT_TEMPLATE,
+)
 from ..shared.utility import field_utcnow
 
 
@@ -11,6 +15,15 @@ class ProductOperation(models.Model):
     _description = 'Product Operation'
     _order = 'operation_timestamp'
     _log_access = False
+
+    model_name = fields.Selection(
+        string='Model Name',
+        required=True,
+        selection=[(PRODUCT_PRODUCT, PRODUCT_PRODUCT),
+                   (PRODUCT_TEMPLATE, PRODUCT_TEMPLATE),
+                   ],
+        readonly=True,
+    )
 
     # don't use Many2One because we keep the record
     # even if the referred product is deleted
@@ -21,11 +34,12 @@ class ProductOperation(models.Model):
         readonly=True,
     )
 
-    model_name = fields.Char(
-        string='Model Name',
+    # we need to remember the product.template id in unlink
+    template_id = fields.Integer(
+        string='Product Template Id',
         required=True,
-        readonly=True,
         index=True,
+        readonly=True,
     )
 
     # the type of record operation such as create_record,
