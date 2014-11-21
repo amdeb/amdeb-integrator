@@ -45,10 +45,12 @@ def log_operation(env, model_name, record_id,
 
     model = env[PRODUCT_OPERATION_TABLE]
     record = model.create(record_values)
-    _logger.debug("Model: {}, record id: {}, template id: {}. "
-                  "{} operation: {}, record id {}, values: {}.".format(
+    logger_template = "Model: {}, record id: {}, template id: {}. " \
+                      "{} operation: {}, record id {}, values: {}."
+    _logger.debug(logger_template.format(
         model_name, record_id, template_id,
-        PRODUCT_OPERATION_TABLE, operation_type, record.id, values
+        PRODUCT_OPERATION_TABLE, operation_type,
+        record.id, values
     ))
 
 # first save interested original methods
