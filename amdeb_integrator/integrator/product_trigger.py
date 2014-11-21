@@ -7,55 +7,24 @@
     The new function signatures are copied from openerp/models.py
 """
 
-import cPickle
-import logging
-
 from openerp import api, SUPERUSER_ID
 from openerp.addons.product.product import product_template, product_product
 
-from ..shared import utility
 from ..shared.model_names import (
     PRODUCT_PRODUCT,
     PRODUCT_TEMPLATE,
-    PRODUCT_OPERATION_TABLE,
 )
 from ..shared.operations_types import (
     CREATE_RECORD,
     WRITE_RECORD,
     UNLINK_RECORD,
 )
-
-_logger = logging.getLogger(__name__)
-
-
-def log_operation(env, model_name, record_id,
-                  template_id, values, operation_type):
-    """ Log product operations. """
-
-    if values:
-        values = cPickle.dumps(values, cPickle.HIGHEST_PROTOCOL)
-
-    record_values = {
-        'model_name': model_name,
-        'record_id': record_id,
-        'template_id': template_id,
-        'record_operation': operation_type,
-        'operation_data': values,
-    }
-
-    model = env[PRODUCT_OPERATION_TABLE]
-    record = model.create(record_values)
-    logger_template = "Model: {}, record id: {}, template id: {}. " \
-                      "{} operation: {}, record id {}, values: {}."
-    _logger.debug(logger_template.format(
-        model_name, record_id, template_id,
-        PRODUCT_OPERATION_TABLE, operation_type,
-        record.id, values
-    ))
+from .log_operation import OperationRecord, log_operation
 
 # first save interested original methods
 original_create = {
     PRODUCT_PRODUCT: product_product.create,
+    PRODUCT_TEMPLATE: product_template.create,
 }
 
 original_write = {
@@ -78,13 +47,19 @@ def create(self, values):
     original_method = original_create[self._name]
     record = original_method(self, values)
 
-    template_id = record.id
+    operation_record = OperationRecord(
+        model_name=self._name,
+        record_id=record.id,
+        template_id=record.id,
+        values=False,
+        operation_type=CREATE_RECORD,
+    )
+
     if self._name == PRODUCT_PRODUCT:
-        template_id = record.product_tmpl_id.id
+        operation_record.template_id = record.product_tmpl_id.id
 
     env = self.env(user=SUPERUSER_ID)
-    log_operation(env, self._name, record.id,
-                  template_id, None, CREATE_RECORD)
+    log_operation(env, operation_record)
 
     return record
 
@@ -96,16 +71,79 @@ def write(self, values):
 
     # sometimes value is empty, don't log it
     if values:
-        for product in self.browse():
-            template_id = product.id
+        for product in self.browse(self.ids):
+            operation_record = OperationRecord(
+                model_name=self._name,
+                record_id=product.id,
+                template_id=product.id,
+                values=values,
+                operation_type=WRITE_RECORD,
+            )
             if self._name == PRODUCT_PRODUCT:
-                template_id = product.product_tmpl_id.id
+                operation_record.template_id = product.product_tmpl_id.id
 
             env = self.env(user=SUPERUSER_ID)
-            log_operation(env, self._name, product.id,
-                          template_id, values, WRITE_RECORD)
+            log_operation(env, operation_record)
 
     return True
+
+_context_key_prefix = "template_unlink"
+
+
+def _check_last_variant(self, cr, uid, context, operation_record):
+    """ create a product_template unlink data for the last variant """
+
+    # Check if this is the last variant of its template
+    # code is copied from product.py
+    other_product_ids = self.search(
+        cr, uid,
+        [('product_tmpl_id', '=', operation_record.template_id),
+         ('id', '!=', operation_record.record_id)],
+        context=context
+    )
+    if not other_product_ids:
+        # the last product_product, set product_template unlink data
+        operation_record.model_name = PRODUCT_TEMPLATE
+        operation_record.product_id = operation_record.template_id
+
+        # notice later product_template unlink using context flag
+        context_key = _context_key_prefix + str(operation_record.template_id)
+        context[context_key] = True
+
+
+def _create_unlink_data(self, cr, uid, ids, context):
+
+    # product_template can be unlink 1) by unlink itself or
+    # 2) by unlink inside its last product_product unlink.
+    # In the second case,  product_template unlink
+    # doesn't have ean13 and default_code.
+    # Therefore we create product_template unlink
+    # record when the last product_product is unlinked
+
+    unlink_records = []
+    for product in self.browse(cr, uid, ids, context=context):
+        operation_record = OperationRecord(
+            model_name=self._name,
+            record_id=product.id,
+            template_id=product.id,
+            values=(product.ean13, product.default_code),
+            operation_type=UNLINK_RECORD,
+        )
+
+        if self._name == PRODUCT_PRODUCT:
+            operation_record.template_id = product.product_tmpl_id.id
+            # update unlink data if it is the last product variant
+            _check_last_variant(self, cr, uid, context, operation_record)
+        else:
+            # We don't create unlink data for product_template unlink
+            # when its unlink data is created by its last variant
+            context_key = _context_key_prefix + str(product.id)
+            if context.get(context_key, None):
+                continue
+
+        unlink_records.append(operation_record)
+
+    return unlink_records
 
 
 # To make it also work correctly for record-style call,
@@ -113,48 +151,25 @@ def write(self, values):
 @api.cr_uid_ids_context
 def unlink(self, cr, uid, ids, context=None):
     """ log unlink product's ean13 and default_code """
-    # product_template can be deleted 1) by itself or
-    # 2) by deletion of its last product_product.
-    # In the second case,  product_template unlink
-    # doesn't have ean13 and default_code.
-    # Therefore we need to to remember product_product's
-    # template id to retrieve the ean13 and default_code.
-    product_codes = {}
-    for product in self.browse(cr, uid, ids, context=context):
-        template_id = product.id
-        if self._name == PRODUCT_PRODUCT:
-            template_id = product.product_tmpl_id.id
 
-        # for product_template unlinked by its last product_product,
-        # its ean13 and default_code are False.
-        product_codes[product.id] = (
-            template_id,
-            (product.ean13, product.default_code),
-        )
+    # The context can not be None in our functions and in api.Environment
+    if context is None:
+        context = {}
+
+    # save product data before unlink
+    unlink_records = _create_unlink_data(self, cr, uid, ids, context)
 
     original_method = original_unlink[self._name]
     original_method(self, cr, uid, ids, context=context)
 
-    if not utility.is_sequence(ids):
-        ids = [ids]
-
-    # The context can not be None for api.Environment
-    if context is None:
-        context = {}
-
     env = api.Environment(cr, SUPERUSER_ID, context)
-    for record_id in product_codes:
-        log_operation(
-            env, self._name, record_id,
-            product_codes[record_id][0],
-            product_codes[record_id][1],
-            UNLINK_RECORD
-        )
-
+    for unlink_record in unlink_records:
+        log_operation(env, unlink_record)
     return True
 
 # replace with interceptors
 product_product.create = create
+product_template.create = create
 product_product.write = write
 product_template.write = write
 product_product.unlink = unlink

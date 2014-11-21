@@ -58,7 +58,8 @@ class ProductOperation(models.Model):
     # it is not set for create and unlink
     operation_data = fields.Binary(
         string='Operation Data',
-        required=False,
+        required=True,
+        default=False,
         readonly=True,
     )
 
