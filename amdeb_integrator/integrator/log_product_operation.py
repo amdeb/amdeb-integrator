@@ -27,7 +27,7 @@ def log_create_operation(model_name, env, record_id):
 
     model = env[PRODUCT_OPERATION_TABLE]
     record = model.create(record_values)
-    _logger.debug("{} create record id {}. {} record id {}.".format(
+    _logger.debug("Model {} create record id {}. {} record id {}.".format(
         model_name, record_id, PRODUCT_OPERATION_TABLE, record.id
     ))
 
