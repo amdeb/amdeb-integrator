@@ -8,7 +8,11 @@ from ..shared.model_names import (
     PRODUCT_TEMPLATE,
 )
 from ..shared.utility import field_utcnow
-
+from ..shared.operations_types import (
+    CREATE_RECORD,
+    WRITE_RECORD,
+    UNLINK_RECORD,
+)
 
 class ProductOperation(models.Model):
     _name = PRODUCT_OPERATION_TABLE
@@ -46,9 +50,9 @@ class ProductOperation(models.Model):
     record_operation = fields.Selection(
         string='Record Operation',
         required=True,
-        selection=[('create_record', 'Create Record'),
-                   ('write_record', 'Write Record'),
-                   ('unlink_record', 'Unlink Record'),
+        selection=[(CREATE_RECORD, CREATE_RECORD),
+                   (WRITE_RECORD, WRITE_RECORD),
+                   (UNLINK_RECORD, UNLINK_RECORD),
                    ],
         readonly=True,
     )
