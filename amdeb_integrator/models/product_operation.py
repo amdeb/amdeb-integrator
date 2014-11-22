@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from datetime import datetime
+
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT as DATETIME_FORMAT
 from openerp import models, fields
 
 from ..shared.model_names import (
@@ -7,12 +10,20 @@ from ..shared.model_names import (
     PRODUCT_PRODUCT,
     PRODUCT_TEMPLATE,
 )
-from ..shared.utility import field_utcnow
 from ..shared.operations_types import (
     CREATE_RECORD,
     WRITE_RECORD,
     UNLINK_RECORD,
 )
+
+
+# there maybe some arguments when used as field default value
+def field_utcnow(*args):
+    """ Return the current UTC day and time in the format expected by the ORM.
+        This function may be used to compute default values.
+    """
+    return datetime.utcnow().strftime(DATETIME_FORMAT)
+
 
 class ProductOperation(models.Model):
     _name = PRODUCT_OPERATION_TABLE
