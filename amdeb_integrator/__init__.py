@@ -5,5 +5,5 @@
 # Odoo add prefix to module name
 from . import models
 
-# import trigger and event to intercept record change calls
+# import trigger to intercept record change operations
 from . import integrator
