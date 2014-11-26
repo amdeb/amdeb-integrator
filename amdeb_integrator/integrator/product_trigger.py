@@ -93,6 +93,8 @@ _context_key_prefix = "template_unlink"
 def _check_last_variant(self, cr, uid, context, operation_record):
     """ create a product_template unlink data for the last variant """
 
+    # the last variant unlink operation also unlinks its
+    # product_template
     # Check if this is the last variant of its template
     # code is copied from product.py
     other_product_ids = self.search(
@@ -107,6 +109,7 @@ def _check_last_variant(self, cr, uid, context, operation_record):
         operation_record.product_id = operation_record.template_id
 
         # notice later product_template unlink using context flag
+        # thus not to create another unlink operation record
         context_key = _context_key_prefix + str(operation_record.template_id)
         context[context_key] = True
 

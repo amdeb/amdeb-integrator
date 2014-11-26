@@ -85,12 +85,3 @@ class ProductOperation(models.Model):
         index=True,
         readonly=True,
     )
-
-    # the integration site name, some operations
-    # are created only for a specific site.
-    # by default, it is for all integration sites.
-    site_name = fields.Char(
-        string='Site Name',
-        required=False,
-        readonly=True,
-    )
