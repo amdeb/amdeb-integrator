@@ -110,7 +110,3 @@ class ProductOperation(models.Model):
         _logger.info("Amdeb product operation cleaned {} records.".format(
             unlink_count
         ))
-
-
-
-
