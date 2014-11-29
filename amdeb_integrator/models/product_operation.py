@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT as DATETIME_FORMAT
-from openerp import models, fields
+from openerp import models, fields, api
 
 from ..shared.model_names import (
     PRODUCT_OPERATION_TABLE,
@@ -16,8 +16,13 @@ from ..shared.operations_types import (
     UNLINK_RECORD,
 )
 
+import logging
+_logger = logging.getLogger(__name__)
 
-# there maybe some arguments when used as field default value
+_UNLINK_DAYS = 100
+
+
+# there are some arguments when used as field default value
 def field_utcnow(*args):
     """ Return the current UTC day and time in the format expected by the ORM.
         This function may be used to compute default values.
@@ -78,10 +83,34 @@ class ProductOperation(models.Model):
         readonly=True,
     )
 
-    operation_timestamp = fields.Datetime(
+    timestamp = fields.Datetime(
         string='Operation Timestamp',
         required=True,
         default=field_utcnow,
         index=True,
         readonly=True,
     )
+
+    def _get_unlink_records(self):
+        now = datetime.utcnow()
+        unlink_date = now - timedelta(days=_UNLINK_DAYS)
+        unlink_date_str = unlink_date.strftime(DATETIME_FORMAT)
+        return self.search([
+            ('timestamp', '<', unlink_date_str)
+        ])
+
+    @api.model
+    def cleanup_cron(self):
+        _logger.info("Amdeb product operation cleanup cron job running.")
+
+        unlink_records = self._get_unlink_records()
+        unlink_count = len(unlink_records)
+        unlink_records.unlink()
+
+        _logger.info("Amdeb product operation cleaned {} records.".format(
+            unlink_count
+        ))
+
+
+
+

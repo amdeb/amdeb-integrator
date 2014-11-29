@@ -19,6 +19,7 @@ and write changes to integration tables.
     ],
     'data': [
         'security/ir.model.access.csv',
+        'data/cron_job.xml'
     ],
     'installable': True,
     'application': False,
