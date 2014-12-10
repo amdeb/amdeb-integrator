@@ -81,7 +81,7 @@ class ProductOperation(models.Model):
         readonly=True,
     )
 
-    operation_timestamp = fields.Datetime(
+    timestamp = fields.Datetime(
         string='Operation Timestamp',
         required=True,
         default=field_utcnow,
