@@ -32,7 +32,7 @@ def field_utcnow(*args):
 
 class ProductOperation(models.Model):
     _name = PRODUCT_OPERATION_TABLE
-    _description = 'Product Operation'
+    _description = 'Product Operation Log'
     _log_access = False
 
     model_name = fields.Selection(
@@ -78,12 +78,10 @@ class ProductOperation(models.Model):
     # it is not set for create and unlink
     operation_data = fields.Binary(
         string='Operation Data',
-        required=True,
-        default=False,
         readonly=True,
     )
 
-    timestamp = fields.Datetime(
+    operation_timestamp = fields.Datetime(
         string='Operation Timestamp',
         required=True,
         default=field_utcnow,
@@ -91,7 +89,7 @@ class ProductOperation(models.Model):
         readonly=True,
     )
 
-    def _get_unlink_records(self):
+    def _get_old_records(self):
         now = datetime.utcnow()
         unlink_date = now - timedelta(days=_UNLINK_DAYS)
         unlink_date_str = unlink_date.strftime(DATETIME_FORMAT)
@@ -103,7 +101,7 @@ class ProductOperation(models.Model):
     def cleanup_cron(self):
         _logger.info("Amdeb product operation cleanup cron job running.")
 
-        unlink_records = self._get_unlink_records()
+        unlink_records = self._get_old_records()
         unlink_count = len(unlink_records)
         unlink_records.unlink()
 

@@ -51,7 +51,6 @@ def create(self, values):
         model_name=self._name,
         record_id=record.id,
         template_id=record.id,
-        values=False,
         operation_type=CREATE_RECORD,
     )
 

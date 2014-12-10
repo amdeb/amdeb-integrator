@@ -25,16 +25,17 @@ class OperationRecord(object):
 def log_operation(env, operation_record):
     """ Log product operations. """
 
-    dumped_values = cPickle.dumps(
-        operation_record.values, cPickle.HIGHEST_PROTOCOL)
-
     record_values = {
         'model_name': operation_record.model_name,
         'record_id': operation_record.record_id,
         'template_id': operation_record.template_id,
-        'operation_data': dumped_values,
         'record_operation': operation_record.operation_type,
     }
+
+    if operation_record.values:
+        dumped_values = cPickle.dumps(
+            operation_record.values, cPickle.HIGHEST_PROTOCOL)
+        record_values['operation_data'] = dumped_values
 
     model = env[PRODUCT_OPERATION_TABLE]
     record = model.create(record_values)
