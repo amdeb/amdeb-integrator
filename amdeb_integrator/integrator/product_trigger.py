@@ -19,7 +19,7 @@ from ..shared.operations_types import (
     WRITE_RECORD,
     UNLINK_RECORD,
 )
-from .log_operation import OperationRecord, log_operation
+from .log_operation import log_operation
 
 # first save interested original methods
 original_create = {
@@ -47,7 +47,7 @@ def create(self, values):
     original_method = original_create[self._name]
     record = original_method(self, values)
 
-    operation_record = OperationRecord(
+    operation_record = dict(
         model_name=self._name,
         record_id=record.id,
         template_id=record.id,
@@ -71,7 +71,7 @@ def write(self, values):
     # sometimes value is empty, don't log it
     if values:
         for product in self.browse(self.ids):
-            operation_record = OperationRecord(
+            operation_record = dict(
                 model_name=self._name,
                 record_id=product.id,
                 template_id=product.id,
@@ -129,7 +129,7 @@ def _create_unlink_data(self, cr, uid, ids, context):
 
     unlink_records = []
     for product in self.browse(cr, uid, ids, context=context):
-        operation_record = OperationRecord(
+        operation_record = dict(
             model_name=self._name,
             record_id=product.id,
             template_id=product.id,
