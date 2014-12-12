@@ -27,7 +27,7 @@ def log_operation(env, operation_record):
         operation_record['model_name'],
         operation_record['record_id'],
         operation_record['template_id'],
-        operation_record.operation_type,
+        operation_record['operation_type'],
         record.id,
         values
     ))
