@@ -17,7 +17,6 @@ def log_operation(env, operation_record):
         dumped_values = cPickle.dumps(values, cPickle.HIGHEST_PROTOCOL)
         operation_record['operation_data'] = dumped_values
         operation_record.pop('values')
-        _logger.debug
 
     model = env[PRODUCT_OPERATION_TABLE]
     record = model.create(operation_record)
