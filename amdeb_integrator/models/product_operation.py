@@ -7,8 +7,8 @@ from openerp import models, fields, api
 
 from ..shared.model_names import (
     PRODUCT_OPERATION_TABLE,
-    PRODUCT_PRODUCT,
-    PRODUCT_TEMPLATE,
+    PRODUCT_PRODUCT_TABLE,
+    PRODUCT_TEMPLATE_TABLE,
     TIMESTAMP_FIELD,
 )
 from ..shared.operations_types import (
@@ -39,8 +39,8 @@ class ProductOperation(models.Model):
     model_name = fields.Selection(
         string='Model Name',
         required=True,
-        selection=[(PRODUCT_PRODUCT, PRODUCT_PRODUCT),
-                   (PRODUCT_TEMPLATE, PRODUCT_TEMPLATE),
+        selection=[(PRODUCT_PRODUCT_TABLE, PRODUCT_PRODUCT_TABLE),
+                   (PRODUCT_TEMPLATE_TABLE, PRODUCT_TEMPLATE_TABLE),
                    ],
         readonly=True,
     )

@@ -17,22 +17,19 @@ from ..shared.model_names import (
 def log_operation(env, operation_record):
     """ Log product operations. """
 
-    values = ''
-    if 'values' in operation_record:
-        values = operation_record['values']
+    if OPERATION_DATA_FIELD in operation_record:
+        values = operation_record[OPERATION_DATA_FIELD]
         dumped_values = cPickle.dumps(values, cPickle.HIGHEST_PROTOCOL)
         operation_record[OPERATION_DATA_FIELD] = dumped_values
-        operation_record.pop('values')
 
     model = env[PRODUCT_OPERATION_TABLE]
     record = model.create(operation_record)
     logger_template = "Model: {0}, record id: {1}, template id: {2}. " \
-                      "operation: {3}, record id: {4}, values: {5}."
+                      "operation: {3}, record id: {4}."
     _logger.debug(logger_template.format(
         operation_record[MODEL_NAME_FIELD],
         operation_record[RECORD_ID_FIELD],
         operation_record[TEMPLATE_ID_FIELD],
         operation_record[RECORD_OPERATION_FIELD],
-        record.id,
-        values
+        record.id
     ))
