@@ -13,6 +13,10 @@ from openerp.addons.product.product import product_template, product_product
 from ..shared.model_names import (
     PRODUCT_PRODUCT,
     PRODUCT_TEMPLATE,
+    MODEL_NAME_FIELD,
+    RECORD_ID_FIELD,
+    TEMPLATE_ID_FIELD,
+    RECORD_OPERATION_FIELD,
 )
 from ..shared.operations_types import (
     CREATE_RECORD,
@@ -47,15 +51,15 @@ def create(self, values):
     original_method = original_create[self._name]
     record = original_method(self, values)
 
-    operation_record = dict(
-        model_name=self._name,
-        record_id=record.id,
-        template_id=record.id,
-        operation_type=CREATE_RECORD,
-    )
+    operation_record = {
+        MODEL_NAME_FIELD: self._name,
+        RECORD_ID_FIELD: record.id,
+        TEMPLATE_ID_FIELD: record.id,
+        RECORD_OPERATION_FIELD: CREATE_RECORD,
+    }
 
     if self._name == PRODUCT_PRODUCT:
-        operation_record.template_id = record.product_tmpl_id.id
+        operation_record[TEMPLATE_ID_FIELD] = record.product_tmpl_id.id
 
     env = self.env(user=SUPERUSER_ID)
     log_operation(env, operation_record)
@@ -71,15 +75,16 @@ def write(self, values):
     # sometimes value is empty, don't log it
     if values:
         for product in self.browse(self.ids):
-            operation_record = dict(
-                model_name=self._name,
-                record_id=product.id,
-                template_id=product.id,
-                values=values,
-                operation_type=WRITE_RECORD,
-            )
+            operation_record = {
+                MODEL_NAME_FIELD: self._name,
+                RECORD_ID_FIELD: product.id,
+                TEMPLATE_ID_FIELD: product.id,
+                RECORD_OPERATION_FIELD: WRITE_RECORD,
+                'values': values,
+            }
             if self._name == PRODUCT_PRODUCT:
-                operation_record.template_id = product.product_tmpl_id.id
+                template_id = product.product_tmpl_id.id
+                operation_record[TEMPLATE_ID_FIELD] = template_id
 
             env = self.env(user=SUPERUSER_ID)
             log_operation(env, operation_record)
@@ -92,24 +97,26 @@ _context_key_prefix = "template_unlink"
 def _check_last_variant(self, cr, uid, context, operation_record):
     """ create a product_template unlink data for the last variant """
 
-    # the last variant unlink operation also unlinks its
+    # the last variant unlink operation also unlink its
     # product_template
     # Check if this is the last variant of its template
     # code is copied from product.py
+    record_id = operation_record[RECORD_ID_FIELD]
+    template_id = operation_record[TEMPLATE_ID_FIELD]
     other_product_ids = self.search(
         cr, uid,
-        [('product_tmpl_id', '=', operation_record.template_id),
-         ('id', '!=', operation_record.record_id)],
+        [('product_tmpl_id', '=', template_id),
+         ('id', '!=', record_id)],
         context=context
     )
     if not other_product_ids:
         # the last product_product, set product_template unlink data
-        operation_record.model_name = PRODUCT_TEMPLATE
-        operation_record.product_id = operation_record.template_id
+        operation_record[MODEL_NAME_FIELD] = PRODUCT_TEMPLATE
+        operation_record[RECORD_ID_FIELD] = template_id
 
         # notice later product_template unlink using context flag
         # thus not to create another unlink operation record
-        context_key = _context_key_prefix + str(operation_record.template_id)
+        context_key = _context_key_prefix + str(template_id)
         context[context_key] = True
 
 
@@ -129,16 +136,16 @@ def _create_unlink_data(self, cr, uid, ids, context):
 
     unlink_records = []
     for product in self.browse(cr, uid, ids, context=context):
-        operation_record = dict(
-            model_name=self._name,
-            record_id=product.id,
-            template_id=product.id,
-            values=(product.ean13, product.default_code),
-            operation_type=UNLINK_RECORD,
-        )
+        operation_record = {
+            MODEL_NAME_FIELD: self._name,
+            RECORD_ID_FIELD: product.id,
+            TEMPLATE_ID_FIELD: product.id,
+            RECORD_OPERATION_FIELD: UNLINK_RECORD,
+            'values': (product.ean13, product.default_code),
+        }
 
         if self._name == PRODUCT_PRODUCT:
-            operation_record.template_id = product.product_tmpl_id.id
+            operation_record[TEMPLATE_ID_FIELD] = product.product_tmpl_id.id
             # update unlink data if it is the last product variant
             _check_last_variant(self, cr, uid, context, operation_record)
         else:

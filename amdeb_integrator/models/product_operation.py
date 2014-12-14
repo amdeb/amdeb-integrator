@@ -9,6 +9,7 @@ from ..shared.model_names import (
     PRODUCT_OPERATION_TABLE,
     PRODUCT_PRODUCT,
     PRODUCT_TEMPLATE,
+    TIMESTAMP_FIELD,
 )
 from ..shared.operations_types import (
     CREATE_RECORD,
@@ -94,7 +95,7 @@ class ProductOperation(models.Model):
         unlink_date = now - timedelta(days=_UNLINK_DAYS)
         unlink_date_str = unlink_date.strftime(DATETIME_FORMAT)
         return self.search([
-            ('timestamp', '<', unlink_date_str)
+            (TIMESTAMP_FIELD, '<', unlink_date_str)
         ])
 
     @api.model
