@@ -9,7 +9,7 @@ from ..shared.model_names import (
     MODEL_NAME_FIELD,
     RECORD_ID_FIELD,
     TEMPLATE_ID_FIELD,
-    RECORD_OPERATION_FIELD,
+    OPERATION_TYPE_FIELD,
     OPERATION_DATA_FIELD,
 )
 
@@ -25,11 +25,11 @@ def log_operation(env, operation_record):
     model = env[PRODUCT_OPERATION_TABLE]
     record = model.create(operation_record)
     logger_template = "Model: {0}, record id: {1}, template id: {2}. " \
-                      "operation: {3}, record id: {4}."
+                      "operation type: {3}, record id: {4}."
     _logger.debug(logger_template.format(
         operation_record[MODEL_NAME_FIELD],
         operation_record[RECORD_ID_FIELD],
         operation_record[TEMPLATE_ID_FIELD],
-        operation_record[RECORD_OPERATION_FIELD],
+        operation_record[OPERATION_TYPE_FIELD],
         record.id
     ))

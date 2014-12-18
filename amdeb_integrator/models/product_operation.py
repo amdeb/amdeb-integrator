@@ -64,8 +64,8 @@ class ProductOperation(models.Model):
 
     # the type of record operation such as create_record,
     # write_record or unlink_record
-    record_operation = fields.Selection(
-        string='Record Operation',
+    operation_type = fields.Selection(
+        string='Product Operation Type',
         required=True,
         selection=[(CREATE_RECORD, CREATE_RECORD),
                    (WRITE_RECORD, WRITE_RECORD),

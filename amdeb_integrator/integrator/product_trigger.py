@@ -17,7 +17,7 @@ from ..shared.model_names import (
     MODEL_NAME_FIELD,
     RECORD_ID_FIELD,
     TEMPLATE_ID_FIELD,
-    RECORD_OPERATION_FIELD,
+    OPERATION_TYPE_FIELD,
     OPERATION_DATA_FIELD,
 )
 from ..shared.operations_types import (
@@ -57,7 +57,7 @@ def create(self, values):
         MODEL_NAME_FIELD: self._name,
         RECORD_ID_FIELD: record.id,
         TEMPLATE_ID_FIELD: record.id,
-        RECORD_OPERATION_FIELD: CREATE_RECORD,
+        OPERATION_TYPE_FIELD: CREATE_RECORD,
     }
 
     if self._name == PRODUCT_PRODUCT_TABLE:
@@ -82,7 +82,7 @@ def write(self, values):
                 MODEL_NAME_FIELD: self._name,
                 RECORD_ID_FIELD: product.id,
                 TEMPLATE_ID_FIELD: product.id,
-                RECORD_OPERATION_FIELD: WRITE_RECORD,
+                OPERATION_TYPE_FIELD: WRITE_RECORD,
                 OPERATION_DATA_FIELD: values,
             }
             if self._name == PRODUCT_PRODUCT_TABLE:
@@ -143,7 +143,7 @@ def _create_unlink_data(self, cr, uid, ids, context):
             MODEL_NAME_FIELD: self._name,
             RECORD_ID_FIELD: product.id,
             TEMPLATE_ID_FIELD: product.id,
-            RECORD_OPERATION_FIELD: UNLINK_RECORD,
+            OPERATION_TYPE_FIELD: UNLINK_RECORD,
             OPERATION_DATA_FIELD: (product.ean13, product.default_code),
         }
 
