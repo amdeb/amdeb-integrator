@@ -17,6 +17,7 @@ from ..shared.model_names import (
 def log_operation(env, operation_record):
     """ Log product operations. """
 
+    values = None
     if OPERATION_DATA_FIELD in operation_record:
         values = operation_record[OPERATION_DATA_FIELD]
         dumped_values = cPickle.dumps(values, cPickle.HIGHEST_PROTOCOL)
@@ -25,11 +26,11 @@ def log_operation(env, operation_record):
     model = env[PRODUCT_OPERATION_TABLE]
     record = model.create(operation_record)
     logger_template = "Model: {0}, record id: {1}, template id: {2}. " \
-                      "operation type: {3}, record id: {4}."
+                      "operation type: {3}, record id: {4}, values: {5}."
     _logger.debug(logger_template.format(
         operation_record[MODEL_NAME_FIELD],
         operation_record[RECORD_ID_FIELD],
         operation_record[TEMPLATE_ID_FIELD],
         operation_record[OPERATION_TYPE_FIELD],
-        record.id
+        record.id, values
     ))
