@@ -9,6 +9,7 @@
 
 from openerp import api, SUPERUSER_ID
 from openerp.addons.product.product import product_template, product_product
+from openerp.addons.stock.stock import stock_quant
 
 from ..shared.model_names import (
     PRODUCT_TEMPLATE_ID_FIELD,
@@ -19,6 +20,7 @@ from ..shared.model_names import (
     TEMPLATE_ID_FIELD,
     OPERATION_TYPE_FIELD,
     OPERATION_DATA_FIELD,
+    PRODUCT_VIRTUAL_AVAILABLE_FIELD,
 )
 from ..shared.operations_types import (
     CREATE_RECORD,
@@ -192,3 +194,30 @@ product_product.write = write
 product_template.write = write
 product_product.unlink = unlink
 product_template.unlink = unlink
+
+# stock quantity create trigger
+original_stock_quantity_create = stock_quant.create
+
+
+@api.model
+@api.returns('self', lambda value: value.id)
+def new_stock_quantity_create(self, values):
+    # convert stock quantity create into a product quantity write
+    original_method = original_stock_quantity_create
+    record = original_method(self, values)
+
+    product_variant = record.product_id
+    operation_record = {
+        MODEL_NAME_FIELD: PRODUCT_PRODUCT_TABLE,
+        RECORD_ID_FIELD: product_variant.id,
+        TEMPLATE_ID_FIELD: product_variant[PRODUCT_TEMPLATE_ID_FIELD].id,
+        OPERATION_TYPE_FIELD: WRITE_RECORD,
+        OPERATION_DATA_FIELD: {PRODUCT_VIRTUAL_AVAILABLE_FIELD: record.qty},
+    }
+
+    env = self.env(user=SUPERUSER_ID)
+    log_operation(env, operation_record)
+
+    return record
+
+stock_quant.create = new_stock_quantity_create
