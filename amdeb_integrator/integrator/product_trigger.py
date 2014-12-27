@@ -195,7 +195,7 @@ product_template.write = write
 product_product.unlink = unlink
 product_template.unlink = unlink
 
-# stock quantity create trigger
+# stock quantity create trigger, convert to product write
 original_stock_quantity_create = stock_quant.create
 
 
