@@ -72,6 +72,14 @@ def create(self, values):
     return record
 
 
+# image values are too big to track, change them to True
+def _change_image_value(values):
+    image_fields = ['image', 'image_medium', 'image_small']
+    for image_field in image_fields:
+        if image_field in values:
+            values[image_field] = True
+
+
 @api.multi
 def write(self, values):
     original_method = original_write[self._name]
@@ -79,6 +87,7 @@ def write(self, values):
 
     # sometimes value is empty, don't log it
     if values:
+        _change_image_value(values)
         for product in self.browse(self.ids):
             operation_record = {
                 MODEL_NAME_FIELD: self._name,
