@@ -11,7 +11,7 @@ from ..shared.model_names import (
     PRODUCT_TEMPLATE_TABLE,
     TIMESTAMP_FIELD,
 )
-from ..shared.operations_types import (
+from ..shared.operations_constants import (
     CREATE_RECORD,
     WRITE_RECORD,
     UNLINK_RECORD,
@@ -74,11 +74,10 @@ class ProductOperation(models.Model):
         readonly=True,
     )
 
-    # the pickled record operation data
-    # it is updating values in write
+    # it is field names in write operation
     # it is not set for create and unlink
-    operation_data = fields.Binary(
-        string='Operation Data',
+    write_field_names = fields.Char(
+        string='Write Field Names',
         readonly=True,
     )
 

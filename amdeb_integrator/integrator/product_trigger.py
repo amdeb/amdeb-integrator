@@ -7,11 +7,13 @@
     The new function signatures are copied from openerp/models.py
 """
 
+import logging
 from openerp import api, SUPERUSER_ID
 from openerp.addons.product.product import product_template, product_product
 from openerp.addons.stock.stock import stock_quant
 
 from ..shared.model_names import (
+    PRODUCT_OPERATION_TABLE,
     PRODUCT_TEMPLATE_ID_FIELD,
     PRODUCT_PRODUCT_TABLE,
     PRODUCT_TEMPLATE_TABLE,
@@ -19,15 +21,17 @@ from ..shared.model_names import (
     RECORD_ID_FIELD,
     TEMPLATE_ID_FIELD,
     OPERATION_TYPE_FIELD,
-    OPERATION_DATA_FIELD,
+    WRITE_FIELD_NAMES_FIELD,
     PRODUCT_VIRTUAL_AVAILABLE_FIELD,
 )
-from ..shared.operations_types import (
+from ..shared.operations_constants import (
     CREATE_RECORD,
     WRITE_RECORD,
     UNLINK_RECORD,
+    FIELD_NAME_DELIMITER,
 )
-from .log_operation import log_operation
+
+_logger = logging.getLogger(__name__)
 
 # first save interested original methods
 original_create = {
@@ -43,6 +47,29 @@ original_unlink = {
     PRODUCT_PRODUCT_TABLE: product_product.unlink,
     PRODUCT_TEMPLATE_TABLE: product_template.unlink,
 }
+
+
+def _set_template_id(self, product, operation_record):
+    if self._name == PRODUCT_PRODUCT_TABLE:
+        template_id = product[PRODUCT_TEMPLATE_ID_FIELD].id
+        operation_record[TEMPLATE_ID_FIELD] = template_id
+
+
+def log_operation(env, operation_record):
+    """ Log product operations. """
+    model = env[PRODUCT_OPERATION_TABLE]
+    record = model.create(operation_record)
+    logger_template = "New product operation Id: {0}, Model: {1}, " \
+                      "record id: {2}, template id: {3}. " \
+                      "operation type: {4}, values: {5}."
+    _logger.debug(logger_template.format(
+        record.id,
+        operation_record[MODEL_NAME_FIELD],
+        operation_record[RECORD_ID_FIELD],
+        operation_record[TEMPLATE_ID_FIELD],
+        operation_record[OPERATION_TYPE_FIELD],
+        operation_record.get(WRITE_FIELD_NAMES_FIELD, None),
+    ))
 
 
 # To make this also work correctly for traditional-style call,
@@ -62,22 +89,11 @@ def create(self, values):
         OPERATION_TYPE_FIELD: CREATE_RECORD,
     }
 
-    if self._name == PRODUCT_PRODUCT_TABLE:
-        template_id = record[PRODUCT_TEMPLATE_ID_FIELD].id
-        operation_record[TEMPLATE_ID_FIELD] = template_id
-
+    _set_template_id(self, record, operation_record)
     env = self.env(user=SUPERUSER_ID)
     log_operation(env, operation_record)
 
     return record
-
-
-# image values are too big to track, change them to True
-def _change_image_value(values):
-    image_fields = ['image', 'image_medium', 'image_small']
-    for image_field in image_fields:
-        if image_field in values:
-            values[image_field] = True
 
 
 @api.multi
@@ -87,66 +103,30 @@ def write(self, values):
 
     # sometimes value is empty, don't log it
     if values:
-        _change_image_value(values)
+        field_names = FIELD_NAME_DELIMITER.join(values.keys())
         for product in self.browse(self.ids):
             operation_record = {
                 MODEL_NAME_FIELD: self._name,
                 RECORD_ID_FIELD: product.id,
                 TEMPLATE_ID_FIELD: product.id,
                 OPERATION_TYPE_FIELD: WRITE_RECORD,
-                OPERATION_DATA_FIELD: values,
+                WRITE_FIELD_NAMES_FIELD: field_names,
             }
-            if self._name == PRODUCT_PRODUCT_TABLE:
-                template_id = product[PRODUCT_TEMPLATE_ID_FIELD].id
-                operation_record[TEMPLATE_ID_FIELD] = template_id
-
+            _set_template_id(self, product, operation_record)
             env = self.env(user=SUPERUSER_ID)
             log_operation(env, operation_record)
 
     return True
 
-_context_key_prefix = "template_unlink"
-
-
-def _check_last_variant(self, cr, uid, context, operation_record):
-    """ create a product_template unlink data for the last variant """
-
-    # the last variant unlink operation also unlink its
-    # product_template
-    # Check if this is the last variant of its template
-    # code is copied from product.py
-    record_id = operation_record[RECORD_ID_FIELD]
-    template_id = operation_record[TEMPLATE_ID_FIELD]
-    other_product_ids = self.search(
-        cr, uid,
-        [(PRODUCT_TEMPLATE_ID_FIELD, '=', template_id),
-         ('id', '!=', record_id)],
-        context=context
-    )
-    if not other_product_ids:
-        # the last product_product, set product_template unlink data
-        operation_record[MODEL_NAME_FIELD] = PRODUCT_TEMPLATE_TABLE
-        operation_record[RECORD_ID_FIELD] = template_id
-
-        # notice later product_template unlink using context flag
-        # thus not to create another unlink operation record
-        context_key = _context_key_prefix + str(template_id)
-        context[context_key] = True
-
 
 def _create_unlink_data(self, cr, uid, ids, context):
 
     # product_template can be unlink 1) by unlink itself or
-    # 2) by unlink inside its last product_product unlink.
-    # In the second case,  product_template unlink
-    # doesn't have ean13 and default_code.
-    # Therefore we create product_template unlink
-    # record when the last product_product is unlinked
-
-    # If there are more than one variants and we unlink
-    # all in a single call, Odoo doesn't unlink product_template.
-    # It only unlink product_template if we only unlink the last
-    # variant in its own unlink call.
+    # 2) by unlink its last product_product. However,
+    # if there are more than one variants and we unlink
+    # all variants in a single step, Odoo doesn't unlink product_template.
+    # It only unlink product_template if we unlink the last
+    # variant individually.
 
     unlink_records = []
     for product in self.browse(cr, uid, ids, context=context):
@@ -155,21 +135,8 @@ def _create_unlink_data(self, cr, uid, ids, context):
             RECORD_ID_FIELD: product.id,
             TEMPLATE_ID_FIELD: product.id,
             OPERATION_TYPE_FIELD: UNLINK_RECORD,
-            OPERATION_DATA_FIELD: (product.ean13, product.default_code),
         }
-
-        if self._name == PRODUCT_PRODUCT_TABLE:
-            template_id = product[PRODUCT_TEMPLATE_ID_FIELD].id
-            operation_record[TEMPLATE_ID_FIELD] = template_id
-            # update unlink data if it is the last product variant
-            _check_last_variant(self, cr, uid, context, operation_record)
-        else:
-            # We don't create unlink data for product_template unlink
-            # when its unlink data is created by its last variant
-            context_key = _context_key_prefix + str(product.id)
-            if context.get(context_key, None):
-                continue
-
+        _set_template_id(self, product, operation_record)
         unlink_records.append(operation_record)
 
     return unlink_records
@@ -212,6 +179,7 @@ original_stock_quantity_create = stock_quant.create
 @api.returns('self', lambda value: value.id)
 def new_stock_quantity_create(self, values):
     # convert stock quantity create into a product quantity write
+    # it is related to a product variant only
     original_method = original_stock_quantity_create
     record = original_method(self, values)
 
@@ -221,7 +189,7 @@ def new_stock_quantity_create(self, values):
         RECORD_ID_FIELD: product_variant.id,
         TEMPLATE_ID_FIELD: product_variant[PRODUCT_TEMPLATE_ID_FIELD].id,
         OPERATION_TYPE_FIELD: WRITE_RECORD,
-        OPERATION_DATA_FIELD: {PRODUCT_VIRTUAL_AVAILABLE_FIELD: record.qty},
+        WRITE_FIELD_NAMES_FIELD: PRODUCT_VIRTUAL_AVAILABLE_FIELD,
     }
 
     env = self.env(user=SUPERUSER_ID)
