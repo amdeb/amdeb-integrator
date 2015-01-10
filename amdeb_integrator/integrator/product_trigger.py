@@ -22,13 +22,13 @@ from ..shared.model_names import (
     TEMPLATE_ID_FIELD,
     OPERATION_TYPE_FIELD,
     WRITE_FIELD_NAMES_FIELD,
+    FIELD_NAME_DELIMITER,
     PRODUCT_VIRTUAL_AVAILABLE_FIELD,
 )
-from ..shared.operations_constants import (
+from ..shared.operations_types import (
     CREATE_RECORD,
     WRITE_RECORD,
     UNLINK_RECORD,
-    FIELD_NAME_DELIMITER,
 )
 
 _logger = logging.getLogger(__name__)
@@ -101,6 +101,10 @@ def write(self, values):
     original_method = original_write[self._name]
     original_method(self, values)
 
+    # we only save the write field names. It has two BIG benefits:
+    # 1) it save time/storage to not store value
+    # 2) integration is forced to use the latest value
+
     # sometimes value is empty, don't log it
     if values:
         field_names = FIELD_NAME_DELIMITER.join(values.keys())
@@ -128,6 +132,9 @@ def _create_unlink_data(self, cr, uid, ids, context):
     # It only unlink product_template if we unlink the last
     # variant individually.
 
+    # we don't want to record extra data such as EAN13 or SKU
+    # it's up to different integration module to save those values
+    # for deletion synchronization
     unlink_records = []
     for product in self.browse(cr, uid, ids, context=context):
         operation_record = {
@@ -189,6 +196,7 @@ def new_stock_quantity_create(self, values):
         RECORD_ID_FIELD: product_variant.id,
         TEMPLATE_ID_FIELD: product_variant[PRODUCT_TEMPLATE_ID_FIELD].id,
         OPERATION_TYPE_FIELD: WRITE_RECORD,
+        # a single field name, no need to use field delimiter
         WRITE_FIELD_NAMES_FIELD: PRODUCT_VIRTUAL_AVAILABLE_FIELD,
     }
 

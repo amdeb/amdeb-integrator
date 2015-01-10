@@ -11,7 +11,7 @@ from ..shared.model_names import (
     PRODUCT_TEMPLATE_TABLE,
     TIMESTAMP_FIELD,
 )
-from ..shared.operations_constants import (
+from ..shared.operations_types import (
     CREATE_RECORD,
     WRITE_RECORD,
     UNLINK_RECORD,
