@@ -6,7 +6,7 @@ from openerp import models, fields
 from ..shared.model_names import PRODUCT_TEMPLATE_TABLE, PRODUCT_PRODUCT_TABLE
 
 
-class product_template(models.Model):
+class ProductTemplate(models.Model):
     _inherit = [PRODUCT_TEMPLATE_TABLE]
 
     # a template always has a SKU
@@ -17,7 +17,7 @@ class product_template(models.Model):
     )
 
 
-class product_product(models.Model):
+class ProductProduct(models.Model):
     _inherit = [PRODUCT_PRODUCT_TABLE]
 
     # only non-partial variant has a SKU, this field is hidden
